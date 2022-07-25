@@ -1,0 +1,983 @@
+"""
+Title: Assignment 2 - On The Way (Dijkstra)
+Name: Hee Zhan Zhynn
+Student ID: 31989403
+Version: 2
+"""
+
+#%%
+# ===========================================================================================
+#                                           Question 2
+#============================================================================================
+import math
+
+class RoadGraph:
+    def __init__(self, roads):
+        """
+        This constructor initialize the graph data structure in the form on an adjacency list. The graph
+        is a directed graph.
+
+        Precondition: input list is stored as a list of tuples
+        Postcondition: An adjacency list of vertices containing edges to other vertices
+
+        Input:
+            a list of tuples representing the set of roads
+
+        Return:
+            An adjacency list of vertices containing edges to other vertices
+
+        eg:
+        roads = [(0, 1 ,4), (1, 2 ,2), (2, 3 ,3), (3, 4 ,1), (1, 5 ,2), 
+            (5, 6 ,5), (6, 3 ,2), (6, 4 ,3), (1, 7 ,4), (7, 8 ,2),
+            (8, 7 ,2), (7, 3 ,2), (8, 0 ,11), (4, 3, 1), (4, 8, 10)]
+        print(RoadGraph(roads))
+        >>> 
+            Vertex Vertex: 0, Distance: inf, Edges: (0,1,4) 
+            Vertex Vertex: 1, Distance: inf, Edges: (1,2,2) (1,5,2) (1,7,4) 
+            Vertex Vertex: 2, Distance: inf, Edges: (2,3,3) 
+            Vertex Vertex: 3, Distance: inf, Edges: (3,4,1) 
+            Vertex Vertex: 4, Distance: inf, Edges: (4,3,1) (4,8,10) 
+            Vertex Vertex: 5, Distance: inf, Edges: (5,6,5) 
+            Vertex Vertex: 6, Distance: inf, Edges: (6,3,2) (6,4,3) 
+            Vertex Vertex: 7, Distance: inf, Edges: (7,8,2) (7,3,2) 
+            Vertex Vertex: 8, Distance: inf, Edges: (8,7,2) (8,0,11) 
+
+        Time complexity: 
+            Best: O(|V| + |E|) where V is the set of unique locations in roads and E is the set of roads
+            Worst: O(|V| + |E|) where V is the set of unique locations in roads and E is the set of roads
+
+        Space complexity: 
+            Input: O(|E|) where E is the set of roads
+            Aux: O(|V| + |E|) where V is the set of unique locations in roads and E is the set of roads
+        """
+        self.roads=roads 
+        #get the biggest vertex in the list
+        maxVertex = 0
+        for item in roads:
+            if item[0]>maxVertex:
+                maxVertex=item[0]
+            if item[1]>maxVertex:
+                maxVertex=item[1]
+
+        # Initialize the graph data structure
+        self.len = maxVertex + 1
+        self.vertices = [None]*self.len
+        for i in range(self.len):
+            self.vertices[i] = Vertex(i)
+            self.vertices[i].pos = i+1 #pos in minheap array start from 1  
+        self.add_edges(roads)
+        
+    def add_edges(self, edges):
+        """
+        This fucntions adds the roads to the vertex's list of edges.
+
+        Precondition: input list is stored as a list of tuples
+        Postcondition: An adjacency list of vertices containing edges to other vertices
+
+        Input:
+            a list of tuples representing the set of roads and the adjacency list
+
+        Return:
+            An adjacency list of vertices containing edges to other vertices
+
+        Time complexity: 
+            Best: O(|E|) where E is the set of roads
+            Worst: O(|E|) where E is the set of roads
+
+        Space complexity: 
+            Input: O(|V| + |E|) where V is the set of unique locations in roads and E is the set of roads
+            Aux: O(|E|) where E is the set of roads
+        """
+        
+        for edge in edges:
+            u = edge[0]
+            v = edge[1]
+            w = edge[2]
+            #directed u to v
+            current_edge = Edge(u,v,w)
+            current_vertex = self.vertices[u] 
+            current_vertex.add_edge(current_edge) 
+        
+    def __str__(self):
+        """
+        This fucntion prints the vertex number.
+
+        Precondition: -
+        Postcondition: A string describing the vertex
+
+        Input:
+            The vertices in a list
+            
+        Return:
+            A string describing the vertex
+
+        Time complexity: 
+            Best: O(|V|) where V is the set of unique locations in roads
+            Worst: O(|V|) where V is the set of unique locations in roads
+
+        Space complexity: 
+            Input: O(|V|) where V is the set of unique locations in roads
+            Aux: O(1) 
+        """
+        return_string = ""
+        for vertex in self.vertices:
+            return_string += "Vertex "+ str(vertex) + "\n"
+        return return_string
+    
+
+
+    def reset(self):
+        """
+        This function reset the vertex properties back to the initial state.
+
+        Precondition: -
+        Postcondition: The vertex properties is resetted back to its initial state
+
+        Input:
+            the list of vertices
+
+        Return:
+            -
+
+        Time complexity: 
+            Best: O(|V|) where V is the set of unique locations in roads
+            Worst: O(|V|) where V is the set of unique locations in roads
+
+        Space complexity: 
+            Input: O(|V|) V is the set of unique locations in roads
+            Aux: O(1) 
+        
+        """
+        for vertex in self.vertices:
+            vertex.discovered = False
+            vertex.visited = False
+            vertex.distance = math.inf
+            vertex.previous = None
+            # vertex.pos = None
+
+
+    def printPath(self, source, destination): 
+        """
+        This function returns the path taken from the source to the destination. It is done by
+        backtracking from the destination and appending the vertex to an array.
+
+        Precondition: source and destination are valid locations in the roads
+        Postcondition: returns the path taken from source to the destination.
+
+        Input:
+            Two integers representing the source and destination in the roads
+
+        Return:
+            Path taken from source to the destination.
+
+        Time complexity: 
+            Best: O(|V|) where V is the set of unique locations in roads
+            Worst: O(|V|) where V is the set of unique locations in roads
+
+        Space complexity: 
+            Input: O(|V|) where V is the set of unique locations in roads
+            Aux: O(|V|) where V is the set of unique locations in roads
+        
+        """
+        self.reversed_path = []
+        current = self.vertices[destination]
+        
+        #while the vertices in 2nd graph is connected to the ones in the first graph and is not the source
+        while current.distance != math.inf and current != self.vertices[source]:
+            #using mod to obtain the original index in the first graph
+            if (current.id % self.len) != current.previous.id:
+                self.reversed_path.append(current.id % self.len)
+            current = current.previous
+        self.reversed_path.append(current.id % self.len )
+        self.reversed_path.reverse()
+
+        if current != self.vertices[source]:
+            #no valid path
+            return None
+        return self.reversed_path
+        
+    def routing(self, start, end, chores_location):
+        """
+        This function computes the shortest path needed to get from source to end while passing by any of the
+        chores location. Routing is done by creating a second graph and connecting it to the first graph by
+        adding an edge of weight 0 from the chore location in the first graph to that of the second. The vertices in the first graph
+        and second graph are related by using mod maths.
+
+        Precondition: source, destination and chores are valid locations in the roads
+        Postcondition: the path computed passes by any of the chores location and is the shortest from start to end
+
+        Input:
+            Two integers representing the source, destination and list of chores in the along the roads.
+
+        Return:
+            Shortest path taken from source to the destination passing by any of the chore locations.
+
+        eg:
+        roads = [(0,1,4), (0,3,2), (0,2,3), (2,3,2), (3,0,3)]
+        mygraph = RoadGraph(roads)
+        start = 0
+        end = 1
+        chores_location = [2,3]
+
+        mygraph.routing(start, end, chores_location)
+        >>> [0, 3, 0, 1]
+
+        Time complexity: 
+            Best: O(|E|log|V|) where V is the set of unique locations in roads and E is the set roads
+            Worst: O(|E|log|V|) where V is the set of unique locations in roads and E is the set roads
+
+        Space complexity: 
+            Input: O(|V|) where V is the set of unique locations in roads
+            Aux: O(|V| + |E|) where V is the set of unique locations in roads and E is the set roads
+        
+        """
+        self.reset() #reset vertices to default properties
+        self.l2_graph() #create level 2 graph
+        self.connect_graph(chores_location) #connect the level 1 and 2 graphs
+        self.dijkstra(start, end+self.len) 
+        path = self.printPath(start, end+self.len)
+        self.reset_routing(chores_location)
+        return path
+
+    def reset_routing(self, chores_location):
+        """
+        This function resets the graph back to the original graph state by removing the copy of the graph and edges.
+
+        Precondition: chores are valid locations in the roads
+        Postcondition: Graph is in the original state
+
+        Input:
+            List of chores in the along the roads.
+
+        Return:
+            Original graph during the graph initialization
+
+        Time complexity: 
+            Best: O(|V|) where V is the set of unique locations in roads
+            Worst: O(|V|) where V is the set of unique locations in roads
+
+        Space complexity: 
+            Input: O(|V|) where V is the set of unique locations in roads
+            Aux: O(1)
+        
+        """
+        #remove copies of the vertices added
+        while len(self.vertices) != self.len:
+            self.vertices.pop()
+
+        #remove the edges added from the chore location in the original graph
+        for vertex in chores_location :
+            self.vertices[vertex].remove_edge()
+
+
+    def dijkstra(self, source, destination=None):
+        """
+        This function computes the shortest distance from the source to every other vertices by performing 
+        edge relaxation and update the distance and previous of each vertex.
+
+        Precondition: vertices are valid locations in the roads
+        Postcondition: Each vertex stores the distance which is the shortest distance from source
+
+        Input:
+            A set of vertices and the edges connected the vertices
+
+        Return:
+            -
+
+        Time complexity: 
+            Best: O(1) when the source is also the destination
+            Worst: O(|E|log|V|) where V is the set of unique locations in roads and E is the set roads
+
+        Space complexity: 
+            Input: O(|V| + |E|) where V is the set of unique locations in roads and E is the set roads
+            Aux: O(|V| + |E|) where V is the set of unique locations in roads and E is the set roads
+        
+        """
+        self.vertices[source].distance = 0
+        discovered = MinHeap(len(self.vertices))
+
+        for i in range(len(self.vertices)): #initialize everything to default distance (inf) for each vertex except source
+            discovered.add(self.vertices[i].distance, self.vertices[i])
+        
+        self.vertices[source].discovered = True
+
+        while len(discovered) > 0:
+            #serve from queue
+            min_elem = discovered.get_min() #get root of queue, will return [distance, vertex]
+            min_elem[1].visited = True #once visited, distance is finalized, cannot be updated
+
+            if min_elem[1] == destination:
+                return
+
+            #edge relaxation
+            for edge in min_elem[1].edges:
+                u = self.vertices[edge.u] #convert number in edge to vertex
+                v = self.vertices[edge.v]
+
+                if v.discovered == False:
+                    v.discovered = True
+                    v.distance = u.distance + edge.w
+                    v.previous = u
+                    discovered.update(v.distance, v)
+                
+                elif v.visited == False: #vertex not finalized, still able to update
+                    #if found shorter path to v, update
+                    if v.distance > u.distance + edge.w:
+                        #update distance
+                        v.distance = u.distance + edge.w #shorter distance
+                        v.previous = u
+                        #update heap
+                        discovered.update(v.distance, v)
+    
+    def l2_graph(self):
+        '''
+        This function duplicates the original graph and relate the vertices back to the original graph using mod maths.
+
+        Precondition: vertices are valid locations in the roads
+        Postcondition: duplicated vertices that are same as the original graph
+
+        Input:
+            A set of vertices and the edges
+
+        Return:
+            Duplicated set of vertices and the edges
+
+        Time complexity: 
+            Best: O(|V| + |E|) where V is the set of unique locations in roads and E is the set of roads
+            Worst: O(|V| + |E|) where V is the set of unique locations in roads and E is the set of roads
+
+        Space complexity: 
+            Input: O(|V| + |E|) where V is the set of unique locations in roads and E is the set roads
+            Aux: O(|V| + |E|) where V is the set of unique locations in roads and E is the set roads
+        '''
+
+        ori_len = self.len #number of vertices in original graph
+        new_vertices = [None] * self.len
+        
+        self.vertices = self.vertices + new_vertices
+        for i in range(self.len):
+            i = i + ori_len #to relate back to original graph using mod maths
+            self.vertices[i] = Vertex(i)
+            self.vertices[i].pos = i+1 #pos in minheap array, start from 1
+        
+        self.add_edges2(self.roads)
+
+    def add_edges2(self, edges):
+        '''
+        This functions adds the roads to the vertex's list of edges in the duplicated graph.
+
+        Precondition: input list of edges is stored as a list of tuples
+        Postcondition: An adjacency list of vertices containing edges to other vertices
+
+        Input:
+            a list of vertex and a list of tuples representing the set of roads
+
+        Return:
+            -
+
+        Time complexity: 
+            Best: O(|E|) where E is the set of roads
+            Worst: O(|E|) where E is the set of roads
+
+        Space complexity: 
+            Input: O(|V| + |E|) where V is the set of unique locations in roads and E is the set of roads
+            Aux: O(|E|) where E is the set of roads
+        '''
+        for edge in edges:
+            u = edge[0] + self.len #the same vertex but in the second graph, use mod maths to get back the same vertex
+            v = edge[1] + self.len
+            w = edge[2]
+            #directed u to v
+            current_edge = Edge(u,v,w)
+            current_vertex = self.vertices[u]
+            current_vertex.add_edge(current_edge)
+    
+    def connect_graph(self, chores):
+        '''
+        This functions connects the original and duplicated graph by adding an edge of weight 0 from the chore location in the 
+        original graph to the same chore location in the duplicated graph.
+
+        Precondition: chore locations are valid location along the roads
+        Postcondition: graph 1 has a connection to graph 2 via the chore locations.
+
+        Input:
+            A list of vertex representing the locations in the road
+
+        Return:
+            -
+
+        Time complexity: 
+            Best: O(|E|) where E is the set of roads
+            Worst: O(|E|) where E is the set of roads
+
+        Space complexity: 
+            Input: O(|V| + |E|) where V is the set of unique locations in roads and E is the set of roads
+            Aux: O(|E|) where E is the set of roads
+        '''
+        for chore in chores:
+            u = chore               #original chore location in graph 1
+            v = chore + self.len    #the same chore location but in graph 2
+            w = 0                   #weight of zero to connect to connect the two locations
+            current_edge = Edge(u,v,w)
+            current_vertex = self.vertices[u]
+            current_vertex.add_edge(current_edge)
+        
+
+import math
+class Vertex:
+    # A class for the Vertex function and properties in the graph
+
+    def __init__(self, id):
+        '''
+        This constructor initialize the Vertex in the graph
+
+        Precondition: an integer representing the vertex
+        Postcondition: A Vertex is initialized with the default properties
+
+        Input:
+            An integer representing the vertex
+
+        Return:
+            -
+
+        Time complexity: 
+            Best: O(1) 
+            Worst: O(1)
+
+        Space complexity: 
+            Input: O(1) 
+            Aux: O(1) 
+        '''
+        self.id = id
+        self.edges = []
+        self.discovered = False
+        self.visited = False
+        self.distance = math.inf
+        self.previous = None
+        self.pos = None
+
+    def add_edge(self, edge):
+        '''
+        This function appends an edge to the vertex
+
+        Precondition: edge is a valid tuple containing the locations in the roads and weight
+        Postcondition: The vertex in the adjacency list has the valid edge
+
+        Input:
+            A tuple (u,v,w) representing two locations and the weight
+
+        Return:
+            -
+
+        Time complexity: 
+            Best: O(1) 
+            Worst: O(1)
+
+        Space complexity: 
+            Input: O(1) 
+            Aux: O(1) 
+        '''
+        self.edges.append(edge)
+
+    def remove_edge(self):
+        '''
+        This function removes the last added edge of the vertex
+
+        Precondition: edge list in the vertex in not empty
+        Postcondition: The last edge in the vertex is removed, it now has 1 less edge
+
+        Input:
+            Edge list of the vertex
+
+        Return:
+            -
+
+        Time complexity: 
+            Best: O(1) 
+            Worst: O(1)
+
+        Space complexity: 
+            Input: O(1) 
+            Aux: O(1) 
+        '''
+        self.edges.pop()
+
+    def __str__(self):
+        '''
+        This function returns a string describing the vertex. It includes the vertex's id, distance from source and the edges
+        to other vertices.
+
+        Precondition: The vertex (location) is valid in the roads
+        Postcondition: All edges in the vertex's edges has been looped through
+
+        Input:
+            List of edges stored of the vertex
+
+        Return:
+            String description about the vertex id, distance from source and edges it has to other vertices
+
+        Time complexity: 
+            Best: O(|E|) where E is the set of roads
+            Worst: O(|E|) where E is the set of roads
+
+        Space complexity: 
+            Input: O(|E|) where E is the set of roads
+            Aux: O(1) 
+        '''
+        return_string = "Vertex: " + str(self.id) + ", Distance: " + str(self.distance) + ", Edges: "
+        for edge in self.edges:
+            return_string = return_string + str(edge) + " " #print edges
+        return return_string
+    
+class Edge:
+    # A class representing each edge in the graph
+
+    def __init__(self, u, v, w): #u,v,w just number here
+        '''
+        This constructor initialize the Edge in the graph.
+
+        Precondition: The edge is valid in the roads
+        Postcondition: The edge has been converted to an Edge object
+
+        Input:
+            A tuple (u,v,w) where u and v are two locations and w the weight the two locations
+
+        Return:
+            -
+
+        Time complexity: 
+            Best: O(1) 
+            Worst: O(1)
+
+        Space complexity: 
+            Input: O(1) 
+            Aux: O(1) 
+        '''
+        self.u = u
+        self.v = v
+        self.w = w
+    
+    def __str__(self):
+        '''
+        This function returns a string representing the Edge object
+
+        Precondition: The Edge is valid in the roads
+        Postcondition: -
+
+        Input:
+            An Edge object
+
+        Return:
+            String (u,v,w) representing the two locations and w the weight between the two locations
+
+        Time complexity: 
+            Best: O(1) 
+            Worst: O(1)
+
+        Space complexity: 
+            Input: O(1) 
+            Aux: O(1) 
+        '''
+        return_string = "(" + str(self.u) + "," + str(self.v) + "," + str(self.w) + ")"
+        return return_string
+
+
+#Adapted minHeap implementation from FIT1008
+class MinHeap(): 
+    # A class representing the priority queue used for Dijkstra's algorithm
+
+    MIN_CAPACITY = 1
+    def __init__(self, max_size: int) -> None:
+        '''
+        This function initialise the min heap array
+
+        Precondition: An integer indicating the max size of the heap array
+        Postcondition: An array with the size of the max size
+
+        Input:
+            An integer indicating the max size of the heap array
+
+        Return:
+            -
+
+        Time complexity: 
+            Best: O(1) 
+            Worst: O(1)
+
+        Space complexity: 
+            Input: O(1) 
+            Aux: O(1) 
+        '''
+        self.length = 0
+        self.the_array = ArrayR(max(self.MIN_CAPACITY, max_size) + 1)
+
+    def __len__(self) -> int:
+        '''
+        This function return the size of the minHeap array.
+
+        Precondition: The minHeap array has already been initialized
+        Postcondition: -
+
+        Input:
+            The minHeap Array
+
+        Return:
+            Size of minHeap array
+
+        Time complexity: 
+            Best: O(1) 
+            Worst: O(1)
+
+        Space complexity: 
+            Input: O(|V|) where V is the set of unique locations
+            Aux: O(1) 
+        '''
+        return self.length
+
+    def is_full(self) -> bool:
+        '''
+        This function checks whether the minHeap array is full.
+
+        Precondition: The minHeap array has already been initialized
+        Postcondition: returns True or False indicating whether the max size of array is reached.
+
+        Input:
+            The minHeap Array
+
+        Return:
+            True is minHeap Array is True, False otherwise
+
+        Time complexity: 
+            Best: O(1) 
+            Worst: O(1)
+
+        Space complexity: 
+            Input: O(|V|) where V is the set of unique locations
+            Aux: O(1) 
+        '''
+        return self.length + 1 == len(self.the_array)
+
+
+
+    def rise(self, k: int) -> None:
+        """
+        Rise element at index k to its correct position
+
+        Precondition: 1<= k <= self.length
+        Postcondition: self.the_array[k] > self.the_array[k//2]
+
+        Input:
+            The minHeap Array
+
+        Return:
+            -
+
+        Time complexity: 
+            Best: O(1) where k is the root itself
+            Worst: O(log|V|) where V is the set of unique locations
+
+        Space complexity: 
+            Input: O(|V|) where V is the set of unique locations
+            Aux: O(1) 
+        """
+        while k > 1 and self.the_array[k][0] < self.the_array[k // 2][0]:
+            # self.swap(k, k // 2)
+            self.the_array[k], self.the_array[k//2] = self.the_array[k//2], self.the_array[k]
+            self.the_array[k][1].pos, self.the_array[k//2][1].pos = self.the_array[k//2][1].pos, self.the_array[k][1].pos
+            k = k // 2
+
+    def add(self, dist, element) -> bool:
+        """
+        Swaps elements while rising
+
+        Precondition: minHeap array is not full
+        Postcondition: self.the_array[k] > self.the_array[k//2]
+
+        Input:
+            The minHeap Array, distance and vertex
+
+        Return:
+            True or False whether minHeap array is full
+
+        Time complexity: 
+            Best: O(1) where k is the root itself
+            Worst: O(log|V|) where V is the set of unique locations
+
+        Space complexity: 
+            Input: O(|V|) where V is the set of unique locations
+            Aux: O(1) 
+        """
+        has_space_left = not self.is_full()
+
+        if has_space_left:
+            self.length += 1
+            self.the_array[self.length] = (dist,element)
+            # print(self.the_array[self.length], self.length)
+            self.rise(self.length)
+
+        return has_space_left
+    
+    def update(self, dist, element):
+        '''
+        update distance and index position of element in minHeap array
+
+        Precondition: minHeap array is initialized and vertex is a valid location in the roads
+        Postcondition: self.the_array[k] > self.the_array[k//2]
+
+        Input:
+            The minHeap Array, distance and vertex
+
+        Return:
+            -
+
+
+        Time complexity: 
+            Best: O(1) where k is the root itself
+            Worst: O(log|V|) where V is the set of unique locations
+
+        Space complexity: 
+            Input: O(|V|) where V is the set of unique locations
+            Aux: O(1) 
+        '''
+        
+        #get element in array
+        self.the_array[element.pos] = (dist, element)
+        self.rise(element.pos)
+
+
+
+    def largest_child(self, k: int) -> int:
+        """
+        Returns the index of the largest child of k.
+        pre: 2*k <= self.length (at least one child)
+        """
+        if 2 * k == self.length or self.the_array[2 * k] > self.the_array[2 * k + 1]:
+            return 2*k
+        else:
+            return 2*k+1
+
+    def smallest_child(self, k: int) -> int:
+        """
+        Returns the index of the smallest child of k.
+        
+        Precondition: 2*k <= self.length (at least one child)
+        Postcondition: self.the_array[2*k+1] > self.the_array[2*k] or self.the_array[2*k+1] < self.the_array[2*k]
+
+        Input:
+            The minHeap Array
+
+        Return:
+            index of the smallest child of k in the minHeap array
+
+
+        Time complexity: 
+            Best: O(1) 
+            Worst: O(1) 
+
+        Space complexity: 
+            Input: O(|V|) where V is the set of unique locations
+            Aux: O(1) 
+
+
+        """
+        if 2 * k == self.length or self.the_array[2 * k][0] > self.the_array[2 * k + 1][0]:
+            return 2*k+1
+        else:
+            return 2*k
+
+
+    def sink(self, k: int) -> None:
+        """ 
+        Make the element at index k sink to the correct position 
+
+        Precondition: 2*k <= self.length (at least one child)
+        Postcondition: self.the_array[2*k] < self.the_array[child] 
+
+        Input:
+            The minHeap Array, index of smallest child
+
+        Return:
+            -
+
+        Time complexity: 
+            Best: O(log|V|) where V is the set of unique locations
+            Worst: O(log|V|) where V is the set of unique locations
+
+        Space complexity: 
+            Input: O(|V|) where V is the set of unique locations
+            Aux: O(1) 
+        """
+        while 2*k <= self.length:
+            child = self.smallest_child(k)
+            if self.the_array[k][0] < self.the_array[child][0]:
+                break
+            self.the_array[k], self.the_array[child] = self.the_array[child], self.the_array[k]
+            self.the_array[k][1].pos, self.the_array[child][1].pos = self.the_array[child][1].pos, self.the_array[k][1].pos
+            k = child
+
+    def get_min(self):
+        """ 
+        Get the root in the minHeap array, which is also the smallest element in the minHeap array
+
+        Precondition: self.length > 0 (at least element)
+        Postcondition: self.the_array[child] > self.the_array[child//2]
+
+        Input:
+            The minHeap Array, index of smallest child
+
+        Return:
+            Smallest element in the minHeap array
+
+        Time complexity: 
+            Best: O(log|V|) where V is the set of unique locations
+            Worst: O(log|V|) where V is the set of unique locations
+
+        Space complexity: 
+            Input: O(|V|) where V is the set of unique locations
+            Aux: O(1) 
+        """
+        if self.length == 0:
+            raise IndexError
+
+        min_elt = self.the_array[1]
+        self.length -= 1
+        if self.length > 0:
+            self.the_array[1] = self.the_array[self.length+1]
+            self.sink(1)
+        return min_elt
+
+
+    def create_heap(self, max_size: int, an_array = None) -> None:
+        """
+        If elements are known in advance, they are in an_array
+
+        Precondition:max_size=len(an_array) if given
+        Postcondition: self.the_array[i] < self.the_array[i*2]
+
+        Input:
+            integer representing the max size of array and an optional array
+
+        Return:
+            -
+
+        Time complexity: 
+            Best: O(log|V|) where V is the set of unique locations
+            Worst: O(log|V|) where V is the set of unique locations
+
+        Space complexity: 
+            Input: O(|V|) where V is the set of unique locations (if an_array is given)
+            Aux: O(1) 
+        """
+        self.the_array = ArrayR(max(self.MIN_CAPACITY, max_size) + 1)
+        self.length = max_size
+
+        if an_array is not None:
+            # copy an_array to self.the_array (shift by 1)
+            for i in range(self.length):
+                self.the_array[i+1] = an_array[i]
+
+            # heapify every parent
+            for i in range(max_size//2, 0, -1):
+                self.sink(i)
+
+import math
+class ArrayR():
+    def __init__(self, length) -> None:
+        """
+        Creates an array of [None] of the given length
+
+        Precondition: length > 0
+        Postcondition: An array of [None] * length
+
+        Input:
+            integer representing the max size of array 
+
+        Return:
+            -
+
+        Time complexity: 
+            Best: O(length) where length is the length of array
+            Worst: O(length) where length is the length of array
+
+        Space complexity: 
+            Input: O(1)
+            Aux: O(length) where length is the length of array 
+
+        """
+        if length <= 0:
+            raise ValueError("Array length should be larger than 0.")
+        self.array = (length * [math.inf]) # initialises the space
+        self.array[:] =  [None for _ in range(length)]
+
+    def __len__(self):
+        """ 
+        Returns the length of the array
+
+        Precondition: An array is initialized
+        Postcondition: -
+
+        Input:
+            An array
+
+        Return:
+            Integer representing the length of the array
+
+        Time complexity: 
+            Best: O(1) 
+            Worst: O(1) 
+
+        Space complexity: 
+            Input: O(length) where length the size of array
+            Aux: O(1)
+
+        """
+        return len(self.array)
+
+    def __getitem__(self, index):
+        """ 
+        Returns the object in position index.
+  
+        Precondition: index in between 0 and length of array
+        Postcondition: Returns element at self.array[index]
+
+        Input:
+            An array
+
+        Return:
+            Element at self.array[index]
+
+        Time complexity: 
+            Best: O(1) 
+            Worst: O(1) 
+
+        Space complexity: 
+            Input: O(length) where length the size of array
+            Aux: O(1)
+
+        """
+        return self.array[index]
+
+    def __setitem__(self, index, value):
+        """ 
+        Sets the object in position index to value
+        :pre: index in between 0 and length of array
+
+        Precondition: index in between 0 and length - self.array[]
+        Postcondition: Sets the element at self.array[index]
+
+        Input:
+            An array, the index of array and the new value to set at that array index
+
+        Return:
+            -
+
+        Time complexity: 
+            Best: O(1) 
+            Worst: O(1) 
+
+        Space complexity: 
+            Input: O(length) where length the size of array
+            Aux: O(1)
+
+        """
+        self.array[index] = value
