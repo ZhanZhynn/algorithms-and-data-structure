@@ -1,0 +1,213 @@
+"""
+FIT2004 Assignment 3 - Salesperson Revenue (DP)
+Author: Hee Zhan Zhynn
+Student ID: 31989403
+Version: 2
+"""
+
+#%%
+# ===========================================================================================
+#                                 Question 1 - Salesperson Revenue
+#============================================================================================
+
+def best_revenue(revenue, travel_days, start):
+    """ 
+    Obtain the maximum possible revenue according the revenue in each city and the travel days to each each.
+    This is done by constructing a table consisting of the travel days to every other city. Then, starting from
+    the last day to start day, modify the revenue table according the possible revenue that can be obtain in each day for each city
+    either by travelling to other cities or stay at current city.
+
+    Note:
+    - primary diagonal on travel_days matrix is converted to zero because travelling to itself require zero day.
+    - Since -1 indicate no direct path from one city to another, the weight of path is set to infinity.
+
+    Precondition : travel_days list consists of only positive integers
+    Postcondition: revenue[0] consists of the maximum possible revenue of each city
+
+    Input:
+        - List of list of revenue obtainable for each city a specific day
+        - List of list of travel_days containing information about number of days you need to spend to travel on
+          the direct road from one city to another
+        - start city
+
+    Return: 
+        Maximum possible revenue of the start city
+    
+    eg:
+    travel_days =   [[-1,-1, 3, 1], 
+                    [-1,-1,-1, 1], 
+                    [ 1,-1,-1, 1], 
+                    [ 1, 1, 2,-1]] 
+
+    revenue =       [[ 1, 2, 3, 4], 
+                    [ 3,  6, 1, 5], 
+                    [ 1,  8, 4, 1], 
+                    [ 1, 10, 4, 5], 
+                    [10, 4, 5, 9]] 
+    start = 0
+    best_revenue(revenue, travel_days, start)
+    >>> 22
+
+    Time complexity: 
+    Best : O(n^2(d + n)) where n is the number of cities and d the number of days
+    Worst: O(n^2(d + n)) where n is the number of cities and d the number of days
+
+    Space complexity: 
+    Input          : O(n^2 + nd) where n is the number of cities and d the number of days
+    Auxiliary Space: O(1)
+    """
+    diagonal_zero(travel_days)  #make diagonals on travel_days table to zero, travelling to itself require 0 day
+    floyd_warshall(travel_days) #find all pair shortest for travel_days
+    find_max_revenue(travel_days, revenue) #DP to find maximum possible revenue for each city
+    return revenue[0][start]
+
+#%% Floyd-Warshall algorithm implementated with reference to FIT2004 materials
+def floyd_warshall(matrix):
+    """ 
+    Find all pair shortest path between all vertices.
+
+    Precondition : No negative cycles
+    Postcondition: Lengths of shortest paths between all pairs of vertices
+
+    Input:
+        n by n matrix consisting of the weighted directed path from one vertex to another
+
+    Return: 
+        n by n matrix containing the lengths of shortest paths between all pairs of vertices
+    
+    eg:
+    travel_days =   [[-1,-1, 3, 1], 
+                    [-1,-1,-1, 1], 
+                    [ 1,-1,-1, 1], 
+                    [ 1, 1, 2,-1]] 
+
+    floyd_warshall(travel_days)
+    >>> [[2, 2, 3, 1], 
+         [2, 2, 3, 1], 
+         [1, 2, 3, 1], 
+         [1, 1, 2, 2]]
+
+    Time complexity: 
+    Best : O(n^3) where n is the number of elements in the matrix
+    Worst: O(n^3) where n is the number of elements in the matrix
+
+    Space complexity: 
+    Input          : O(n^2) where n is the number of elements in the matrix
+    Auxiliary Space: O(1)
+    """
+    count_vertex = len(matrix)
+    for k in range(count_vertex):
+        for i in range(count_vertex):
+            for j in range(count_vertex):
+                #-1 means means no direct path, same as saying the distance between 2 vertices is infinity
+                if matrix[i][j] == -1:
+                    matrix[i][j] = float('inf')
+                if matrix[i][k] == -1:
+                    matrix[i][k] = float('inf')
+                if matrix[k][j] == -1:
+                    matrix[k][j] = float('inf')
+                matrix[i][j] = min(matrix[i][j], matrix[i][k] + matrix[k][j])
+    return matrix
+
+def diagonal_zero(matrix):
+    '''
+    Convert all primary diagonal to zero
+
+    Precondition : Matrix is not empty
+    Postcondition: Primary diagonal in a matrix is zero
+
+    Input:
+        n by n matrix
+
+    Return: 
+        n by n matrix where the diagonals are zeroes
+    
+    eg:
+    travel_days =   [[-1,-1, 3, 1], 
+                    [-1,-1,-1, 1], 
+                    [ 1,-1,-1, 1], 
+                    [ 1, 1, 2,-1]] 
+
+    diagonal_zero(travel_days)
+    >>> [[0, -1, 3, 1], 
+         [-1, 0, -1, 1], 
+         [1, -1, 0, 1], 
+         [1, 1, 2, 0]]
+
+    Time complexity: 
+    Best : O(n^2) where n is the number of elements in the matrix
+    Worst: O(n^2) where n is the number of elements in the matrix
+
+    Space complexity: 
+    Input          : O(n^2) where n is the number of elements in the matrix
+    Auxiliary Space: O(1)
+    '''
+    count_vertex = len(matrix)
+    for i in range(count_vertex):
+        matrix[i][i] = 0
+    return matrix
+
+#Dynamic Programming
+def find_max_revenue(travel_days, revenue):
+    '''
+    Compute the total possible revenue for each city at each day starting from the last day to the first day.
+
+    memo[day][current_city] = max(revenue[day][current_city] + revenue[day+1][current_city], revenue[z][other_cities]) where z is 
+    travel days to from current_city to other_cities
+
+    Precondition : Travel_days list consists of only positive integers
+    Postcondition: Revenue[0] consist of the maximum possible revenue of each city
+
+    Input:
+        - List of list of revenue obtainable for each city a specific day
+        - List of list of travel_days containing information about number of days you need to spend to travel on
+          the direct road from one city to another
+
+    Return: 
+        List of list revenue consisting the cummulative sum of revenue at each day for every city starting from
+        the last day to start day.
+    
+    eg:
+    travel_days =   [[-1,-1, 3, 1], 
+                    [-1,-1,-1, 1], 
+                    [ 1,-1,-1, 1], 
+                    [ 1, 1, 2,-1]] 
+
+    revenue =       [[ 1, 2, 3, 4], 
+                    [ 3,  6, 1, 5], 
+                    [ 1,  8, 4, 1], 
+                    [ 1, 10, 4, 5], 
+                    [10, 4, 5, 9]] 
+    
+    find_max_revenue(travel_days, revenue)
+    >>> [[22, 30, 22, 28],
+         [17, 28, 15, 22],
+         [14, 22, 14, 15],
+         [11, 14, 10, 14],
+         [10, 4, 5, 9]]
+
+    Time complexity: 
+    Best : O(n^2 * d) where n is the number of cities and d the number of days
+    Worst: O(n^2 * d) where n is the number of cities and d the number of days
+
+    Space complexity: 
+    Input          : O(n^2 + nd) where n is the number of cities and d the number of days
+    Auxiliary Space: O(1)
+    '''
+    count_vertex = len(travel_days) #total cities
+    totalDays = len(revenue) - 1 #the last day
+    day = len(revenue) - 2 #second last day
+    
+    #start from 2nd last day
+    while day >= 0:
+        for city1 in range(count_vertex): #loop through cities
+            max_city2 = 0
+            for city2 in range(count_vertex): 
+                #find max revenue if travel to other cities, z is the day of arrival at new city
+                z = day + travel_days[city1][city2] 
+                if z <= totalDays and revenue[z][city2] > max_city2:
+                    max_city2 = revenue[z][city2]
+            #what is the max revenue if travel to other cities vs stay at same city
+            revenue[day][city1] = max(revenue[day][city1] + revenue[day+1][city1], max_city2)
+        day -= 1
+    return revenue
