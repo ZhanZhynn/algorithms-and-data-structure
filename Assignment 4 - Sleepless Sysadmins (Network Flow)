@@ -1,0 +1,618 @@
+"""
+Title: Assignment 4
+Name: Hee Zhan Zhynn
+Student ID: 31989403
+Version: 3
+"""
+
+#%%
+# ===========================================================================================
+#                                  Question 1 -  Sleepless Sysadmins (Network Flow)
+#============================================================================================
+import math
+class Vertex:
+    # A class for the Vertex function and properties in the graph
+    def __init__(self, id):
+        '''
+        This constructor initialize the Vertex in the graph
+
+        Precondition: an integer representing the vertex
+        Postcondition: A Vertex is initialized with the default properties
+
+        Input:
+            An integer representing the vertex
+
+        Return:
+            -
+
+        Time complexity: 
+            Best: O(1) 
+            Worst: O(1)
+
+        Space complexity: 
+            Input: O(1) 
+            Aux: O(1) 
+        '''
+        self.id = id
+        self.edges = []
+        self.discovered = False
+        self.visited = False
+        self.capacity = None
+        self.lowerbound = None
+
+    def add_edge(self, edge):
+        '''
+        This function appends an edge to the vertex
+
+        Precondition: edge is a valid list containing the locations in the roads and weight
+        Postcondition: The vertex in the adjacency list has the valid edge
+
+        Input:
+            A list (u,v,l,m) representing an edge from u to v with lowerbound l and max capacity m
+
+        Return:
+            -
+
+        Time complexity: 
+            Best: O(1) 
+            Worst: O(1)
+
+        Space complexity: 
+            Input: O(1) 
+            Aux: O(1) 
+        '''
+        self.edges.append(edge)
+
+    def __str__(self):
+        '''
+        This function returns a string describing the vertex. It includes the vertex's id, and the infomation on the edges (lower bound and capacity)
+
+        Precondition: -
+        Postcondition: All edges in the vertex's edges has been looped through
+
+        Input:
+            List of edges stored of the vertex
+
+        Return:
+            String description about the vertex id, distance from source and edges it has to other vertices
+
+        Time complexity: 
+            Best: O(|E|) where E is the set of adjecent edges
+            Worst: O(|E|) where E is the set of adjecent edges
+
+        Space complexity: 
+            Input: O(|E|) where E is the set of adjecent edges
+            Aux: O(1) 
+        '''
+        return_string = "Vertex: " + str(self.id) + ", Edges: "
+        for edge in self.edges:
+            return_string = return_string + str(edge) + " " #print edges
+        return return_string
+    
+class Edge:
+    # A class representing each edge in the graph
+
+    def __init__(self, u, v, l, m, r, f = None): #u,v,w just number here
+        '''
+        This constructor initialize the Edge in the graph.
+
+        Precondition: There is an edge from Node u to v
+        Postcondition: The edge has been converted to an Edge object
+
+        Input:
+            A list (u,v,l,m,r,f) which indicates the attributes of the edge
+
+        Return:
+            -
+
+        Time complexity: 
+            Best: O(1) 
+            Worst: O(1)
+
+        Space complexity: 
+            Input: O(1) 
+            Aux: O(1) 
+        '''
+        self.u = u
+        self.v = v
+        self.l = l  #lower bound
+        self.m = m  #max (capacity)
+        self.r = r  #pointer to the reverse edge
+        self.f = 0  #flow
+    
+    def add_reverse(self, r):
+        '''
+        Function to add the address of its reverse edge 
+
+        Precondition: There is an edge from Node u to v
+        Postcondition: Address of reverse edge is stored in the edge
+
+        Input:
+            Edge object which is the reverse edge of the current edge
+
+        Return:
+            -
+
+        Time complexity: 
+            Best: O(1) 
+            Worst: O(1)
+
+        Space complexity: 
+            Input: O(1) 
+            Aux: O(1) 
+        '''
+        self.r = r #pointer to the reverse edge
+
+    
+    def __str__(self):
+        '''
+        This function returns a string representing the Edge object
+
+        Precondition: The Edge is valid in the roads
+        Postcondition: -
+
+        Input:
+            An Edge object
+
+        Return:
+            String (u,v,l,m) representing the edge properties such as lower bound and capacity
+
+        Time complexity: 
+            Best: O(1) 
+            Worst: O(1)
+
+        Space complexity: 
+            Input: O(1) 
+            Aux: O(1) 
+        '''
+        return_string = "(" + str(self.u) + "," + str(self.v) + "," + str(self.l) + "," + str(self.m)+ ")"
+        return return_string
+
+class Network:
+    # A class to represent the flow network
+
+    def __init__(self, preferences,sysadmins_per_night, max_unwanted_shifts, min_shifts):
+        '''
+        This constructor initialize the network flow according to the given preferences list. The network flow
+        is represented using an adjacency list. We have a source, employee nodes, intermediate nodes representing
+        employee preferred shift and unwanted shift, nodes for night shifts and a sink. 
+
+        Precondition:  0 ≤ sysadmins_per_night ≤ n,  0 ≤ max_unwanted_shifts ≤ 30,  0 ≤ min_shifts ≤ 30
+        Postcondition: A network flow graph
+
+        Input:
+           Policies for the network flow
+
+        Return:
+            -
+
+        Time complexity: 
+            Best: O(N^2) where N is the number system administrators
+            Worst: O(N^2) where N is the number system administrators
+
+        Space complexity: 
+            Input: O(N^2) where N is the number system administrators
+            Aux: O(|V| + |E|) where V is the set of unique nodes and E the set of edges connecting the node
+        '''
+
+
+        self.totalAdmins = len(preferences[0])      #number of sales admin
+        self.totalChoices = self.totalAdmins * 2    #each admin has 2 choices
+        self.totalNights = len(preferences)         #toal night shifts
+        self.len = self.totalAdmins + self.totalChoices + self.totalNights + 3 #2 for source and sink and super source
+
+
+        source = 0
+        sink = self.len - 2
+        superSource = self.len -1
+
+        #create vertex nodes
+        self.vertices = [None]*self.len
+        for i in range(self.len):
+            self.vertices[i] = Vertex(i)
+
+        #connect super source to source
+        sourceflow = (sysadmins_per_night * self.totalNights) - (self.totalAdmins * min_shifts)
+        edge = [superSource, source, 0, sourceflow]
+        self.add_edges([edge])
+
+        #connect source to employee, edge = [u,v,lower bound, capacity]
+        #connect super source to employee
+        for adminNo in range(1,self.totalAdmins+1):
+            edge = [source, adminNo, 0, self.totalNights -min_shifts ] #totalnights
+            edgeSs= [superSource, adminNo, 0, min_shifts]  #supersource to employee
+            self.add_edges([edge, edgeSs]) 
+
+        #connect nights to sink
+        startNightIndex = self.totalAdmins + self.totalChoices +1
+        # print(startNightIndex, startNightIndex + self.totalNights)
+        for nightsN in range(startNightIndex, startNightIndex + self.totalNights):
+            edge = [nightsN, sink, 0, sysadmins_per_night]
+            self.add_edges([edge]) 
+
+        #connect sink to super source
+        # edge = [sink, superSource, 0, float('inf')]
+        # # edge1 = [sink, 0, 0, self.totalNights*sysadmins_per_night]
+        # # # edge = [sink, 0, 0, self.totalNights*sysadmins_per_night]
+        # self.add_edges([edge]) 
+
+        #connect imployee to preference nodes
+        for adminNo in range(1,self.totalAdmins+1):
+            wantedShiftIndex = adminNo + self.totalAdmins 
+            unwatedShiftIndex = adminNo + self.totalAdmins*2
+            wantedEdge = [adminNo, wantedShiftIndex , 0, self.totalNights]
+            unwantedEdge = [adminNo, unwatedShiftIndex , 0, max_unwanted_shifts]
+            self.add_edges([wantedEdge, unwantedEdge]) 
+
+        #connect preference node to nights choices
+        for i in range(len(preferences)):           #30 nights
+            for j in range(len(preferences[0])):    #employee
+                if preferences[i][j]: #if it's 1, add to preferred node
+                    wantedNode = j + 1 + self.totalAdmins   #j start from 0
+                    night = i + startNightIndex             #already + 1 in startNightIndex
+                    edge = [wantedNode, night, 0, 1]
+                    self.add_edges([edge])
+                else:
+                    unWantedNode = j + 1 + self.totalAdmins*2   #j start from 0
+                    night = i + startNightIndex                 # already + 1 in startNightIndex
+                    edge = [unWantedNode, night, 0, 1]
+                    self.add_edges([edge])
+
+    def add_edges(self, edges):
+        """
+        This function adds the edge to the vertex's list of edges. We added a reverse edge at the same time as well and 
+        store the reference to the reverse edge in our current edge.
+
+        Precondition: input list is stored as a as a list
+        Postcondition: An adjacency list of vertices containing edges to other vertices
+
+        Input:
+            a list representing the set of edge properties such as the lower bound and connecting node
+
+        Return:
+            -
+
+        Time complexity: 
+            Best: O(|E|) where E is the set of edges
+            Worst: O(|E|) where E is the set of edges
+
+        Space complexity: 
+            Input: O(|V| + |E|) where V is the set of nodes in the network and E is the set of edges
+            Aux: O(|E|) where E is the set of edges
+        """
+        for edge in edges:
+            u = edge[0]
+            v = edge[1]
+            l = edge[2] #lower bound
+            m = edge[3] #capacity
+
+            #directed u to v
+            current_edge = Edge(u,v,l,m, None)
+            reverse_edge = Edge(v,u,-l, 0, current_edge)    #reverse edge always have a capacity of 0 and negative flow of current edge
+            current_edge.add_reverse(reverse_edge)
+
+            current_vertex = self.vertices[u] 
+            next_vertex = self.vertices[v] 
+
+            current_vertex.add_edge(current_edge) 
+            next_vertex.add_edge(reverse_edge)
+
+    def __str__(self):
+        """
+        This fucntion prints the vertex number.
+
+        Precondition: -
+        Postcondition: A string describing the vertex
+
+        Input:
+            The vertices in a list
+            
+        Return:
+            A string describing the vertex
+
+        Time complexity: 
+            Best: O(|V|) where V is the set of unique nodes in the network
+            Worst: O(|V|) where V is the set of unique nodes in the network
+
+        Space complexity: 
+            Input: O(|V|) where V is the set of unique nodes in the network
+            Aux: O(1) 
+        """
+        return_string = ""
+        for vertex in self.vertices:
+            return_string += "Vertex "+ str(vertex) + "\n"
+        return return_string
+
+class ResidualNetwork:
+    #class regarding the residual graph and methods about ford-fulkerson
+    
+    def __init__(self, graph):
+        '''
+        This constructor initialize the residual network to call the ford fulkerson method
+
+        Precondition:  network flow graph exist
+        Postcondition: A residual network that can use the ford fulkerson
+
+        Input:
+           network flow graph
+
+        Return:
+            -
+
+        Time complexity: 
+            Best: O(1) 
+            Worst: O(1) 
+
+        Space complexity: 
+            Input: O(1) 
+            Aux: O(1) 
+        '''
+        self.graph = graph
+
+    #ford-fulkerson implementation with dfs using reference from course note
+    def dfs(self, u, t, bottleneck):
+        '''
+        Traverse through a path from the root to the destination node. It finds and perform
+        path augmentation at the same time and stores the bottleneck.
+        
+        Input:
+           residual graph, source, destination and bottleneck of the path
+
+        Return:
+            -
+
+        Time complexity: 
+            Best: O(1) where the source is the destination
+            Worst: O(|V| + |E|) where V is the set of nodes in the network and E is the set of edges 
+
+        Space complexity: 
+            Input: O(|V| + |E|) where V is the set of nodes in the network and E is the set of edges 
+            Aux: O(1) 
+        
+        '''
+        if u == t:
+            return bottleneck
+        
+        u = self.graph.vertices[u]
+        u.visited = True
+
+        #traverse through all adjacent edges
+        for edge in u.edges:
+            # u = self.graph.vertices[edge.u]
+            v = self.graph.vertices[edge.v]
+            residual = edge.m - edge.l #capacity - lowerbound(flow)
+            
+            if residual > 0 and v.visited == False:
+                #continue performing path augmentation until there is no more augmenting path left
+                augment = self.dfs(v.id, t, min(bottleneck, residual) )
+                if augment > 0:
+                    edge.l += augment
+                    edge.r.l -= augment #reverse flow
+                    return augment
+        return 0
+
+    def max_flow(self, s ,t):
+        '''
+        Finds the max flow of the residual graph and augment the path to allow for max flow from the source
+        to the destination.
+
+        Input:
+            residual graph, source and destination
+
+        Precondition: valid source and destination vertex
+        Postcondition: Maximum flow network graph if it exists
+
+        Return:
+            Maximum flow of the graph
+
+        Time complexity: 
+            Best: O(FE) where F is the maximum flow and E the edges
+            Worst: O(FE) where F is the maximum flow and E the edges
+
+        Space complexity: 
+            Input: O(|V| + |E|) where V is the set of nodes in the network and E is the set of edges 
+            Aux: O(1) 
+        '''
+        flow = 0
+        for vertex in self.graph.vertices:
+            # print(vertex.edges[0], vertex.edges[0].r)
+            vertex.visited = False
+        augment = self.dfs(s,t, float('inf'))
+        flow += augment
+        while augment > 0:
+            for vertex in self.graph.vertices:
+                # print(vertex.edges[0], vertex.edges[0].r)
+                vertex.visited = False
+            augment = self.dfs(s,t, float('inf'))
+            flow += augment
+        # print(flow)
+        return flow
+
+    def __str__(self):
+        """
+        This fucntion prints the vertex number.
+
+        Precondition: -
+        Postcondition: A string describing the vertex
+
+        Input:
+            The vertices in a list
+            
+        Return:
+            A string describing the vertex
+
+        Time complexity: 
+            Best: O(|V|) where V is the set of unique nodes in the graph
+            Worst: O(|V|) where V is the set of unique nodes in the graph
+
+        Space complexity: 
+            Input: O(|V|) where V is the set of unique nodes in the graph
+            Aux: O(1) 
+        """
+        return_string = ""
+        for vertex in self.graph.vertices:
+            return_string += "Vertex "+ str(vertex) + "\n"
+        return return_string
+
+
+    def gen_allocation(self, preferences, min_shift, sys_admin_per_night):
+        '''
+        This functions generates a list of list indicating the admin is allocated to a 
+        specific night. This is done by looping through edges connected from the 
+        shift choices to the nights in the max flow residual graph. If there exist a flow, 
+        then the admin is allocated to that night.
+
+        Overhere, we check whether the constrain sysadmins_per_night and min_shifts is met for
+        looping through the edges of admin and the nights, then check whether their lower bound
+        satisfied what is required. Return None if one of the constraint is not satisfied.
+        
+        Care is taken to obtain the corresponding employee number and night by doing some subtracion 
+        on the value id obtain since our nodes in the graph starts from 0 until the sink node (including 
+        admin preferecen nodes).
+
+        Precondition: preferences list is not empty
+        Postcondition: Allocation of admins to night shifts if all constraint met, return None otherwise
+
+        Input:
+            Residual graph and list of preferences
+            
+        Return:
+            A list of list indicating the admin shifts allocation if all contraint met, return None otherwise
+
+        Time complexity: 
+            Best:   O(N^2) where N is the number of admins
+            Worst:  O(N^2) where N is the number of admins
+
+        Space complexity: 
+            Input: O(N^2) where N is the number of admins
+            Aux:   O(1) 
+
+        '''
+
+        preferenceNodeIndex = len(preferences[0]) + 1   #starting index which represents the preferred shift node
+        preferenceNodeEnd = len(preferences[0])*2 + 1   #ending index which represents the preferred shift node
+        totalAdmins = len(preferences[0])
+
+        firstNight = 1 + totalAdmins    #start node id for first night prefrence node
+
+        rows = len(preferences)
+        columns = len(preferences[0])
+        for i in range(rows): #convert everything to 0
+            for j in range(columns):
+                preferences[i][j] = 0
+
+        # #check whether admin met constrain
+        # for adminNo in range(1, totalAdmins+1):
+        #     admin = self.graph.vertices[adminNo]
+        #     totalShift = 0
+        #     for edge in admin.edges:
+        #         u = edge.u
+        #         v = edge.v
+        #         l = edge.l  #check whether lower bound met
+        #         if v <= (firstNight+30) and v >= firstNight:
+        #             totalShift += l
+        #     if totalShift < min_shift:
+        #         return None
+        
+        # #check whether min sys admin per night contraint met 
+        # lastNight = len(self.graph.vertices) - 3
+        # firstNight = lastNight - 30 #30 nights
+        # while lastNight != (firstNight):
+        #     night = self.graph.vertices[lastNight].edges[0]  #the edge flowing into each night
+        #     l = night.l                                      #lower bound for the night
+        #     lastNight -= 1
+        #     if l < sys_admin_per_night: 
+        #         return None
+
+        #check feasbility whether we have max flow from supersource to source and admin, if max flow means all contraints met
+        lastNode = len(self.graph.vertices) - 1 #supersource node
+        
+        for edge in self.graph.vertices[lastNode].edges:
+            v = edge.v
+            l = edge.l
+            m = edge.m
+            if l != m:  #didn't max out
+                return None
+
+
+        #check feasbility whether we have max flow from each night to sink
+        for edge in self.graph.vertices[lastNode-1].edges: #sink node
+            # v = edge.v
+            l = edge.l
+            # m = edge.m
+            if l != -sys_admin_per_night:  #didn't max out
+                return None
+
+
+        #look at the preferred night shift node
+        for wanted in range(preferenceNodeIndex, preferenceNodeEnd):
+            u_vertex = self.graph.vertices[wanted]
+            for edge in u_vertex.edges:
+
+                if edge.v > edge.u: #make sure it is not the reverse node
+                    #get the corresponding employee number and night shift by doing some subtraction
+                    u = edge.u - totalAdmins   -1   #employee number that correspond to the node
+                    v = edge.v - totalAdmins*3 - 1  #night shift 
+                    l = edge.l
+
+                    if l == 1: #there is a flow
+                        preferences[v][u] = 1
+
+        #look at the non-preferred night shift node
+        for unWanted in range(preferenceNodeIndex + totalAdmins, preferenceNodeEnd + totalAdmins):
+            u_vertex = self.graph.vertices[unWanted]
+            for edge in u_vertex.edges:
+                if edge.v > edge.u:
+                    u = edge.u - totalAdmins*2  -1   #employee number that correspond to the node
+                    v = edge.v - totalAdmins*3 - 1   #night shift number
+                    l = edge.l
+
+                    if l == 1: #there is a flow
+                        preferences[v][u] = 1
+        return preferences
+            
+
+def allocate(preferences, sysadmins_per_night, max_unwanted_shifts, min_shifts):
+    '''
+    Function that computes the most suitable shift allocation based on the admin's preferences and
+    which satisfied the contraints. This is done by first initializing the network flow graph with demands and lower bound.
+    Then we would remove the lower bounds and demands by modifying the graph. After that, run Ford-Fulkerson method to 
+    get the max flow. Once we have the max flow of our network flow, we check whether the constraints are met.
+
+    Precondition: Non-negative inputs
+    Postcondition: Allocation of admins to night shifts which has a max flow
+
+    Input:
+        List of preferences and 3 other constraints to satisfy
+        
+    Return:
+        A list of list indicating the admin shifts allocation, return None if one of the constraints not satisfied
+
+    Time complexity: 
+        Best:   O(N^2) where N is the number of admins
+        Worst:  O(N^2) where N is the number of admins
+
+    Space complexity: 
+        Input: O(N^2) where N is the number of admins
+        Aux:   O(|V| + |E|) where V is the set of unique nodes and E the set of edges connecting the node, for adjacency list
+    
+    '''
+    #initialize network flow
+    network_flow = Network(preferences,sysadmins_per_night, max_unwanted_shifts, min_shifts) 
+    
+    #initialize residual graph
+    res = ResidualNetwork(network_flow)
+
+    totalAdmins = len(preferences[0])      #number of admins
+    totalChoices = totalAdmins * 2         #each admin has 2 choices
+    totalNights = len(preferences)         #toal night shifts
+    sink = totalAdmins + totalChoices + totalNights + 1 # sink node
+
+    #running the ford fulkerson method from supersource (last node) to sink node
+    res.max_flow(sink+1,sink)   #Node for supersource is created after the sink node
+    # print(res)
+
+    #generate the allocation
+    allocation = res.gen_allocation(preferences, min_shifts, sysadmins_per_night)
+
+    return allocation
