@@ -1,0 +1,152 @@
+"""
+Title: Assignment 2 - Location Optimisation using Median of Medians
+Name: Hee Zhan Zhynn
+Student ID: 31989403
+Version: 2
+"""
+
+#%%
+# ===========================================================================================
+#                                           Question 1
+#============================================================================================
+def ideal_place(relevant):
+    """
+    This function computes the coordinate such that the total manhattan distance to all relevant
+    points is minimum by using the concept of medians of medians.
+
+    Precondition: input list is a 2 dimension array
+    Postcondition: the total manhattan distance from the coordinate to all relevant points is the minimum.
+
+    Input:
+        A list of coordinates in 2 dimension array
+
+    Return:
+        A single coordinate with the minimum total manhattan distance to all relevant points
+
+    eg:
+    relevant = [[5,8], [7,5], [9, 1], [0,7], [1,9], [2,1], [10,10]]
+    ideal_place(relevant)
+    >>> [5, 7]
+
+    Time complexity: 
+        Best:  O(N) where N is the number of relevant points
+        Worst: O(N) where N is the number of relevant points
+
+    Space complexity: 
+        Input: O(N) where N is the number of relevant points
+        Aux: O(N) where N is the number of relevant points
+    """
+    A = [point[0] for point in relevant]
+    B = [point[1] for point in relevant]
+    mid_pos = len(A)//2 
+    x = median_of_medians(A,mid_pos)
+    y = median_of_medians(B,mid_pos)
+    return [x,y]
+
+
+def median_of_medians(lst, mid_pos):
+    """
+    This function finds a pivot such that is the the kth smallest element of an unsorted array by recursively sorting
+    the input list into chunks of 5 and obtain the medians.
+
+    Precondition: input is a list of integers
+    Postcondition: value returned is the approximate median in the list
+
+    Input:
+        a list of unsorted integers
+
+    Return:
+        A single value which is the approximate median in the list
+
+    eg:
+    lst = [5,7,9,0,1,2,10]
+    mid_pos = len(lst)//2
+    median_of_medians(lst,mid_pos)
+    >>> 5
+
+    Time complexity: 
+        Best: O(N) where N is the size of input list
+        Worst: O(N) where N is the size of input list
+
+    Space complexity: 
+        Input: O(N) where N is the size of input list
+        Aux: O(N) where N is the size of input list
+    """
+
+    #divide and sort list into sublists of size 5
+    medians = []
+    for j in range(0, len(lst), 5):
+        medians += [insertion_sort(lst[j:j+5])[len(lst[j:j+5])//2]] #medians in each sublist
+
+    if len(medians) <= 5:
+        pivot = insertion_sort(medians)[len(medians)//2]
+    else:
+        #the pivot is the median of the medians
+        pivot = median_of_medians(medians, len(medians)//2)
+
+
+    #Dutch National Flag implementation (3-colours)
+    low = 0
+    high = len(lst) - 1
+    mid = 0
+    while mid <= high:
+        if lst[mid] < pivot:
+            lst[low], lst[mid] = lst[mid], lst[low]
+            low += 1
+            mid+=1
+        elif lst[mid] > pivot:
+            lst[high], lst[mid] = lst[mid], lst[high]
+            high -= 1
+        else:
+            # same as pivot
+            mid += 1
+
+    #Decide whether to recurse into low, mid or high part based on middle position of the input list
+    #mid_pos is located in the low
+    if mid_pos < low: 
+        return median_of_medians(lst[:low],mid_pos)
+
+    #mid_pos is located in the high
+    elif mid_pos > mid - 1:
+        return median_of_medians(lst[mid:], mid_pos - mid) 
+
+    #mid_pos is located in mid
+    else:
+        return pivot
+
+#Insertion sort implementation adapted from FIT1008
+def insertion_sort(the_list):
+    """
+    This function sorts the input list in ascending order.
+
+    Precondition: input is a list of integers
+    Postcondition: for all i in range(1,n), the_list[i-1] <= the_list[i]
+
+    Input:
+        a list of unsorted integers
+
+    Return:
+        A sorted list of integers
+
+    eg:
+    the_list = [5,7,9,0,1,2,10]
+    insertion_sort(the_list)
+    >>> [0, 1, 2, 5, 7, 9, 10]
+
+    Time complexity: 
+        Best: O(N) where N is the size of input list
+        Worst: O(N^2) where N is the size of input list
+
+    Space complexity: 
+        Input: O(N) where N is the size of input list
+        Aux: O(1) 
+    """
+    n = len(the_list)
+    for mark in range(1,n):
+        temp = the_list[mark]
+        i = mark - 1
+        while i >= 0 and the_list[i] > temp:
+            the_list[i+1] = the_list[i]
+            i -= 1
+        the_list[i+1] = temp
+    return the_list
