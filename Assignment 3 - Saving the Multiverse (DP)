@@ -1,0 +1,306 @@
+"""
+FIT2004 Assignment 3
+Author: Hee Zhan Zhynn
+Student ID: 31989403
+Version: 2
+"""
+
+# %%
+# ===========================================================================================
+#                                 Question 2 - Saving the Multiverse (DP)
+#============================================================================================
+
+def hero(attacks):
+    '''
+    Function caller that calls the fight() function which determine the best fighting schedule for Dr Weird that maximises 
+    the number of clones that can be defeated. More details on the implementation can be found in documention for fight() function.
+
+    Precondition : Multiverse's attack is not empty, attack's start date <= end date
+    Postcondition: last entry in the memo is the maximum number of cloens that can be defeated
+
+    Input:
+       Multiverse's attack
+
+    Return: 
+        List of multiverse attacks that maximises the number of clones defeated
+
+    eg:
+    attacks = [[1, 2, 7, 6], [2, 7, 9, 10], [3, 8, 9, 5]]
+    hero(attacks)
+    >>> [[3, 8, 9, 5], [1, 2, 7, 6]]
+
+    Time complexity: 
+    Best : O(nlogn) where n is the number of attacks
+    Worst: O(nlogn) where n is the number of attacks
+
+    Space complexity: 
+    Input          : O(n) where n is the number of attacks
+    Auxiliary Space: O(n) where n is the number of attacks
+    '''
+    my_multiverse = Multiverse(attacks)                 # Initialize Multiverse Class
+    fight_schedule = fight(my_multiverse.multiverses)   # Which multiverses Dr Weird should visit
+    return fight_schedule
+
+class Multiverse:
+    # A class for the Multiverse 
+    def __init__(self, attacks):
+        '''
+        This constructor initialize the multiverse vertex
+
+        Precondition : attacks is a non-empty list of N attacks
+        Postcondition: A Multiverse is initialized with the default properties
+
+        Input:
+            Non-empty list of N attacks
+
+        Return: 
+            -
+
+        Time complexity: 
+        Best : O(n) where n is the number of attacks
+        Worst: O(n) where n is the number of attacks
+
+        Space complexity: 
+        Input          : O(n) where n is the number of attacks
+        Auxiliary Space: O(n) where n is the number of attacks
+        '''
+        self.multiverses = [None] * len(attacks)
+        self.len = len(attacks)
+        for i in range(self.len):
+            self.multiverses[i] = Attack(attacks[i])
+    
+    def __str__(self):
+        '''
+        Print string for the Multiverse object
+
+        Precondition : -
+        Postcondition: -
+
+        Input:
+            Multiverses' attacks
+
+        Return: 
+            A string describing the Multiverse object
+
+        Time complexity: 
+        Best : O(n) where n is the number of attacks
+        Worst: O(n) where n is the number of attacks
+
+        Space complexity: 
+        Input          : O(n) where n is the number of attacks
+        Auxiliary Space: O(1)
+        '''
+        return_string = ""
+        for multiverse in self.multiverses:
+            return_string +=  str(multiverse) + "\n"
+        return return_string
+
+class Attack:
+    # A class for the attacks in a given Multiverse
+    def __init__(self, attack):
+        '''
+        This constructor initialize Attack object in a Multiverse
+
+        Precondition : attacks is a non-empty list of N attacks
+        Postcondition: A Multiverse is initialized with the default properties
+
+        Input:
+            Non-empty list of N attacks
+
+        Return: 
+            -
+
+        Time complexity: 
+        Best : O(1) 
+        Worst: O(1) 
+
+        Space complexity: 
+        Input          : O(1) 
+        Auxiliary Space: O(1)
+        '''
+        multiverse = attack[0]
+        start = attack[1]
+        end = attack[2]
+        clones = attack[3]
+
+        self.attack = attack            #pointer for the original attack
+        self.multiverse = multiverse
+        self.start = start
+        self.end = end
+        self.clones = clones
+        self.previous = -1
+
+        #Used in DP part, determine the parent index when value on the left is greater than current value
+        self.copied = False         #indicate whether we include or exclude current attack's clones
+        self.copiedFromIndex = -1   #store the attack's index where we got the maximum clones from if we exclude current attack's clones
+    
+    def __str__(self):
+        '''
+        Print string for each attack
+
+        Precondition : -
+        Postcondition: -
+
+        Input:
+            Attack object
+
+        Return: 
+            A string describing the Multiverse object
+
+        Time complexity: 
+        Best : O(1) 
+        Worst: O(1) 
+
+        Space complexity: 
+        Input          : O(1) 
+        Auxiliary Space: O(1)
+        '''
+        return "Multiverse: " + str(self.multiverse) + str(self.start) + str(self.end) + str(self.clones)
+
+# Binary search algorithm adapted from FIT1008
+def binarySearch(multiverse, start_index):
+    '''
+    Binary search to find the latest Multiverse's attack that does not conflict with the current Multiverse's in terms of
+    start and end date. Returns -1 if all multiverse conflicts with current multiverse attack. 
+
+    Precondition : List of multiverse attacks is sorted by end date
+    Postcondition: Mid is the previous attacks that does not conflict with current attack, if exists
+
+    Input:
+        List of multiverse attacks and a current attack index
+
+    Return: 
+        Latest multiverse's attack that does not conflict with current multiverse's. Return -1 if none exist
+
+    Time complexity: 
+    Best : O(1) where mid is the desired multiverse attack
+    Worst: O(logn) where n is the number of attacks
+
+    Space complexity: 
+    Input          : O(1)
+    Auxiliary Space: O(1)
+    '''
+
+    lo = 0
+    hi = start_index - 1
+
+    while lo <= hi:
+        mid = (lo+hi)//2
+        if multiverse[mid].end < multiverse[start_index].start:
+            #get the end date of previous multiverse attack that is closest to the start date of current multiverse attack
+            if multiverse[mid+1].end < multiverse[start_index].start:
+                lo = mid + 1
+            else:
+                return mid
+        else:
+            hi = mid-1
+    return -1
+
+def takeThird(multiverse):
+    '''
+    Auxiliary function for python built-in sorted(). We use this function as the input key parameter in python's sorted().
+
+    Precondition : Multiverse's attack end date is not null
+    Postcondition: -
+
+    Input:
+        Multiverse's Attack
+
+    Return: 
+        End date of the attack at a given multiverse's attack
+
+    Time complexity: 
+    Best : O(1) 
+    Worst: O(1) 
+
+    Space complexity: 
+    Input          : O(1) 
+    Auxiliary Space: O(1)
+    '''
+    return multiverse.end
+
+#Dynamic Programming
+def fight(multiverses):
+    '''
+    Determine the best fighting schedule for Dr Weird that maximises the number of clones that can be defeated.
+    The multiverses' attacks are sorted based on the end date of each attack. Then Binary Search is used to find
+    the latest attack that does not conflict with the current attack. We will always compare with the clones 
+    defeated in the previous entry and the current entry. We will take the entry with the maximum
+    number of clones defeated.
+
+    memo[i] = max(memo[i-1], attack[i] + latest attack memo's clones)
+
+    Precondition : Multiverse's attack is not empty, attack's start date <= end date
+    Postcondition: last entry in the memo is the maximum number of cloens that can be defeated
+
+    Input:
+        Multiverse's attack
+
+    Return: 
+        List of multiverse attacks that maximises the number of clones defeated
+
+    Time complexity: 
+    Best : O(nlogn) where n is the number of attacks
+    Worst: O(nlogn) where n is the number of attacks
+
+    Space complexity: 
+    Input          : O(n) where n is the number of attacks
+    Auxiliary Space: O(n) where n is the number of attacks
+
+    '''
+    # Sort attacks according to end time
+    multiverses = sorted(multiverses, key = takeThird)
+ 
+    # Create an array to store solutions of subproblems.  
+    # memo[i] stores the clones till memo[i] (inclusive of memo[i])
+    n = len(multiverses)
+    memo = [0 for _ in range(n)]
+    memo[0] = multiverses[0].clones
+ 
+    # Fill entries in memo[]
+    for i in range(1, n):
+        # Find total clones including the current attack
+        inclClones = multiverses[i].clones
+        l = binarySearch(multiverses, i) #find latest attack apart from current attack
+        if (l != -1):
+            inclClones += memo[l]
+
+        if memo[i-1] > inclClones: #if memo[i-1] > memo[i]
+            memo[i] = memo[i - 1]
+            
+            #if exclude own attack's clones, we store the attack index that resulted in the maximum clones
+            if multiverses[i-1].copied == False:
+                multiverses[i].copied = True
+                multiverses[i].copiedFromIndex = i - 1  
+                multiverses[i].previous = i - 1
+            else:
+                multiverses[i].copied = True
+                #if previous attack excluded own attack's clone, should backtrack to the attack that resulted in the most clones
+                multiverses[i].previous = multiverses[i-1].copiedFromIndex          #latest index that resulted in most clones defeated
+                multiverses[i].copiedFromIndex = multiverses[i-1].copiedFromIndex 
+
+        else:
+            memo[i] = inclClones
+            if multiverses[l].copied == True:
+                multiverses[i].previous = multiverses[l].copiedFromIndex  #Store the original attack index that resulted in the most clones
+            else:
+                multiverses[i].previous = l
+
+    #find maximum clones
+    maxMemo = memo[0]
+    max_index = 0
+    for i in range(len(memo)):
+        if memo[i] > maxMemo:
+            maxMemo = memo[i]
+            max_index = i
+
+    fight_schedule = []
+
+    current = multiverses[max_index]
+    while current.previous != -1:
+        # current = multiverses[max]
+        fight_schedule.append(current.attack)
+        current = multiverses[current.previous]
+    fight_schedule.append(current.attack)
+
+    return fight_schedule
